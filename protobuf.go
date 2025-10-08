@@ -70,7 +70,12 @@ func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string)
 }
 
 func (p *ProtoFile) Encode(jsonString string) []byte {
-    log.Printf("DEBUG Encode: input JSON length=%d, first 200 chars=%s", len(jsonString), jsonString[:min(200, len(jsonString))])
+    // Show first 200 chars of JSON input
+    jsonPreview := jsonString
+    if len(jsonString) > 200 {
+        jsonPreview = jsonString[:200]
+    }
+    log.Printf("DEBUG Encode: input JSON length=%d, first chars=%s", len(jsonString), jsonPreview)
     
     msg := dynamicpb.NewMessage(p.messageDesc)
     err := protojson.Unmarshal([]byte(jsonString), msg)
@@ -79,14 +84,26 @@ func (p *ProtoFile) Encode(jsonString string) []byte {
         panic(err)
     }
     
-    log.Printf("DEBUG: After unmarshal, message has %d fields set", len(msg.ProtoReflect().Descriptor().Fields()))
+    // Count how many fields are set
+    fieldCount := 0
+    msg.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+        log.Printf("DEBUG: Field %s (number %d) = %v", fd.Name(), fd.Number(), v)
+        fieldCount++
+        return true
+    })
+    log.Printf("DEBUG: After unmarshal, %d fields are set", fieldCount)
     
     data, err := proto.Marshal(msg)
     if err != nil {
         panic(err)
     }
     
-    log.Printf("DEBUG: Encoded to %d bytes, first 20 hex: % x", len(data), data[:min(20, len(data))])
+    // Show first 20 bytes in hex
+    hexLen := 20
+    if len(data) < 20 {
+        hexLen = len(data)
+    }
+    log.Printf("DEBUG: Encoded to %d bytes, first %d hex: % x", len(data), hexLen, data[:hexLen])
     return data
 }
 
