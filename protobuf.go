@@ -46,19 +46,24 @@ func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string)
     if err != nil {
         log.Fatal(err)
     }
-    if files == nil || len(files.Files) == 0 {
+    if files == nil || len(files) == 0 {
         log.Fatal("No files were compiled")
     }
 
-    // Use fully qualified name to find message
-    desc := files.FindDescriptorByName(protoreflect.FullName(lookupType))
-    if desc == nil {
-        log.Fatalf("Message type %s not found", lookupType)
+    // Extract simple name from fully qualified name (e.g., "infra.iot_comms_poc.Ping" -> "Ping")
+    simpleName := lookupType
+    if lastDot := len(lookupType) - 1; lastDot >= 0 {
+        for i := lastDot; i >= 0; i-- {
+            if lookupType[i] == '.' {
+                simpleName = lookupType[i+1:]
+                break
+            }
+        }
     }
-    
-    msgDesc, ok := desc.(protoreflect.MessageDescriptor)
-    if !ok {
-        log.Fatalf("%s is not a message type", lookupType)
+
+    msgDesc := files[0].Messages().ByName(protoreflect.Name(simpleName))
+    if msgDesc == nil {
+        log.Fatalf("Message type %s not found", lookupType)
     }
 
     return ProtoFile{msgDesc}
