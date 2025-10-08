@@ -27,14 +27,23 @@ type ProtoFile struct {
 func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string) ProtoFile {
 	// Default import paths if none provided
     if len(importPaths) == 0 {
-        importPaths = []string{filepath.Dir(protoFilePath)}
+        protoDir := filepath.Dir(protoFilePath)
+        
+        // Convert to absolute path
+        absProtoDir, err := filepath.Abs(protoDir)
+        if err != nil {
+            // Fallback to relative path if Abs fails
+            absProtoDir = protoDir
+        }
+        
+        importPaths = []string{absProtoDir}
     }
-	
-	compiler := protocompile.Compiler{
-		Resolver: &protocompile.SourceResolver{
-			ImportPaths: importPaths,
-		},
-	}
+    
+    compiler := protocompile.Compiler{
+        Resolver: &protocompile.SourceResolver{
+            ImportPaths: importPaths,
+        },
+    }
 
 	files, err := compiler.Compile(context.Background(), protoFilePath)
 	if err != nil {
