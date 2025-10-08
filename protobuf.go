@@ -3,6 +3,7 @@ package protobuf
 import (
 	"context"
 	"log"
+	"path/filepath"
 
 	"github.com/bufbuild/protocompile"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -26,7 +27,7 @@ type ProtoFile struct {
 func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string) ProtoFile {
 	// Default import paths if none provided
     if len(importPaths) == 0 {
-        importPaths = []string{".", "proto", "k6-scripts/proto"}
+        importPaths = []string{filepath.Dir(protoFile)}
     }
 	
 	compiler := protocompile.Compiler{
