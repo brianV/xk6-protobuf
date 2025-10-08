@@ -69,14 +69,7 @@ func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string)
     return ProtoFile{msgDesc}
 }
 
-func (p *ProtoFile) Encode(jsonString string) []byte {
-    // Show first 200 chars of JSON input
-    jsonPreview := jsonString
-    if len(jsonString) > 200 {
-        jsonPreview = jsonString[:200]
-    }
-    log.Printf("DEBUG Encode: input JSON length=%d, first chars=%s", len(jsonString), jsonPreview)
-    
+func (p *ProtoFile) Encode(jsonString string) string {
     msg := dynamicpb.NewMessage(p.messageDesc)
     err := protojson.Unmarshal([]byte(jsonString), msg)
     if err != nil {
@@ -84,27 +77,13 @@ func (p *ProtoFile) Encode(jsonString string) []byte {
         panic(err)
     }
     
-    // Count how many fields are set
-    fieldCount := 0
-    msg.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-        log.Printf("DEBUG: Field %s (number %d) = %v", fd.Name(), fd.Number(), v)
-        fieldCount++
-        return true
-    })
-    log.Printf("DEBUG: After unmarshal, %d fields are set", fieldCount)
-    
     data, err := proto.Marshal(msg)
     if err != nil {
         panic(err)
     }
     
-    // Show first 20 bytes in hex
-    hexLen := 20
-    if len(data) < 20 {
-        hexLen = len(data)
-    }
-    log.Printf("DEBUG: Encoded to %d bytes, first %d hex: % x", len(data), hexLen, data[:hexLen])
-    return data
+    // Return as Go string (binary safe in Go, preserves all bytes 0-255)
+    return string(data)
 }
 
 func (p *ProtoFile) Decode(decodedBytes []byte) string {
