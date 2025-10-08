@@ -32,17 +32,27 @@ func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string)
         // Convert to absolute path
         absProtoDir, err := filepath.Abs(protoDir)
         if err != nil {
-            // Fallback to relative path if Abs fails
+            log.Printf("Failed to get absolute path for %s: %v", protoDir, err)
             absProtoDir = protoDir
         }
         
+        log.Printf("DEBUG: protoFilePath=%s, protoDir=%s, absProtoDir=%s", protoFilePath, protoDir, absProtoDir)
         importPaths = []string{absProtoDir}
     }
+    
+    log.Printf("DEBUG: Using ImportPaths: %v", importPaths)
     
     compiler := protocompile.Compiler{
         Resolver: &protocompile.SourceResolver{
             ImportPaths: importPaths,
         },
+    }
+    
+    // Also try resolving protoFilePath to absolute
+    absProtoFile, err := filepath.Abs(protoFilePath)
+    if err == nil {
+        log.Printf("DEBUG: Resolved proto file to: %s", absProtoFile)
+        protoFilePath = absProtoFile
     }
 
 	files, err := compiler.Compile(context.Background(), protoFilePath)
