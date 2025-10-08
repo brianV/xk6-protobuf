@@ -48,11 +48,16 @@ func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string)
         },
     }
     
-    // Also try resolving protoFilePath to absolute
+    // Make proto file path relative to the first import path
     absProtoFile, err := filepath.Abs(protoFilePath)
     if err == nil {
-        log.Printf("DEBUG: Resolved proto file to: %s", absProtoFile)
-        protoFilePath = absProtoFile
+        relPath, err := filepath.Rel(importPaths[0], absProtoFile)
+        if err == nil {
+            log.Printf("DEBUG: Using relative proto path: %s", relPath)
+            protoFilePath = relPath
+        } else {
+            log.Printf("DEBUG: Could not make relative path, using: %s", protoFilePath)
+        }
     }
 
 	files, err := compiler.Compile(context.Background(), protoFilePath)
