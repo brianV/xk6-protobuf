@@ -27,7 +27,7 @@ type ProtoFile struct {
 func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string) ProtoFile {
 	// Default import paths if none provided
     if len(importPaths) == 0 {
-        importPaths = []string{filepath.Dir(protoFile)}
+        importPaths = []string{filepath.Dir(protoFilePath)}
     }
 	
 	compiler := protocompile.Compiler{
