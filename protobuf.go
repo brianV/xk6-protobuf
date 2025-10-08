@@ -25,22 +25,12 @@ type ProtoFile struct {
 }
 
 func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string) ProtoFile {
-	// Default import paths if none provided
+    // Default import paths if none provided
     if len(importPaths) == 0 {
         protoDir := filepath.Dir(protoFilePath)
-        
-        // Convert to absolute path
-        absProtoDir, err := filepath.Abs(protoDir)
-        if err != nil {
-            log.Printf("Failed to get absolute path for %s: %v", protoDir, err)
-            absProtoDir = protoDir
-        }
-        
-        log.Printf("DEBUG: protoFilePath=%s, protoDir=%s, absProtoDir=%s", protoFilePath, protoDir, absProtoDir)
+        absProtoDir, _ := filepath.Abs(protoDir)
         importPaths = []string{absProtoDir}
     }
-    
-    log.Printf("DEBUG: Using ImportPaths: %v", importPaths)
     
     compiler := protocompile.Compiler{
         Resolver: &protocompile.SourceResolver{
@@ -48,30 +38,30 @@ func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string)
         },
     }
     
-    // Make proto file path relative to the first import path
-    absProtoFile, err := filepath.Abs(protoFilePath)
-    if err == nil {
-        relPath, err := filepath.Rel(importPaths[0], absProtoFile)
-        if err == nil {
-            log.Printf("DEBUG: Using relative proto path: %s", relPath)
-            protoFilePath = relPath
-        } else {
-            log.Printf("DEBUG: Could not make relative path, using: %s", protoFilePath)
-        }
+    // Make proto file path relative to import path for protocompile
+    absProtoFile, _ := filepath.Abs(protoFilePath)
+    relPath, _ := filepath.Rel(importPaths[0], absProtoFile)
+
+    files, err := compiler.Compile(context.Background(), relPath)
+    if err != nil {
+        log.Fatal(err)
+    }
+    if files == nil || len(files.Files) == 0 {
+        log.Fatal("No files were compiled")
     }
 
-	files, err := compiler.Compile(context.Background(), protoFilePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if files == nil {
-		log.Fatal("No files were passed as arguments")
-	}
-	if len(files) == 0 {
-		log.Fatal("Zero files were parsed")
-	}
+    // Use fully qualified name to find message
+    desc := files.FindDescriptorByName(protoreflect.FullName(lookupType))
+    if desc == nil {
+        log.Fatalf("Message type %s not found", lookupType)
+    }
+    
+    msgDesc, ok := desc.(protoreflect.MessageDescriptor)
+    if !ok {
+        log.Fatalf("%s is not a message type", lookupType)
+    }
 
-	return ProtoFile{files[0].Messages().ByName(protoreflect.Name(lookupType))}
+    return ProtoFile{msgDesc}
 }
 
 func (p *ProtoFile) Encode(data string) []byte {
