@@ -69,21 +69,25 @@ func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string)
     return ProtoFile{msgDesc}
 }
 
-func (p *ProtoFile) Encode(data string) []byte {
-	dynamicMessage := dynamicpb.NewMessage(p.messageDesc)
-
-	err := protojson.Unmarshal([]byte(data), dynamicMessage)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	encodedBytes, err := proto.Marshal(dynamicMessage)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return encodedBytes
+func (p *ProtoFile) Encode(jsonString string) []byte {
+    log.Printf("DEBUG Encode: input JSON length=%d, first 200 chars=%s", len(jsonString), jsonString[:min(200, len(jsonString))])
+    
+    msg := dynamicpb.NewMessage(p.messageDesc)
+    err := protojson.Unmarshal([]byte(jsonString), msg)
+    if err != nil {
+        log.Printf("ERROR: protojson.Unmarshal failed: %v", err)
+        panic(err)
+    }
+    
+    log.Printf("DEBUG: After unmarshal, message has %d fields set", len(msg.ProtoReflect().Descriptor().Fields()))
+    
+    data, err := proto.Marshal(msg)
+    if err != nil {
+        panic(err)
+    }
+    
+    log.Printf("DEBUG: Encoded to %d bytes, first 20 hex: % x", len(data), data[:min(20, len(data))])
+    return data
 }
 
 func (p *ProtoFile) Decode(decodedBytes []byte) string {
