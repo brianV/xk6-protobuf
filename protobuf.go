@@ -6,8 +6,9 @@ import (
 	"path/filepath"
 
 	"github.com/bufbuild/protocompile"
-	"go.k6.io/k6/js/modules"
 	"google.golang.org/protobuf/encoding/protojson"
+
+	"go.k6.io/k6/js/modules"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
@@ -23,7 +24,6 @@ type ProtoFile struct {
 	messageDesc protoreflect.MessageDescriptor
 }
 
-// Load compiles a proto file and returns a ProtoFile for encoding/decoding messages
 func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string) ProtoFile {
 	// Default import paths if none provided
 	if len(importPaths) == 0 {
@@ -54,11 +54,14 @@ func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if files == nil || len(files) == 0 {
-		log.Fatal("No files were compiled")
+	if files == nil {
+		log.Fatal("No files were passed as arguments")
+	}
+	if len(files) == 0 {
+		log.Fatal("Zero files were parsed")
 	}
 
-	// Extract simple name from fully qualified name (e.g., "infra.iot_comms_poc.Ping" -> "Ping")
+	// Extract simple name from fully qualified name (e.g., "iot.test_messages.Ping" -> "Ping")
 	simpleName := lookupType
 	for i := len(lookupType) - 1; i >= 0; i-- {
 		if lookupType[i] == '.' {
@@ -67,47 +70,48 @@ func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string)
 		}
 	}
 
-	msgDesc := files[0].Messages().ByName(protoreflect.Name(simpleName))
-	if msgDesc == nil {
+	messageDesc := files[0].Messages().ByName(protoreflect.Name(simpleName))
+	if messageDesc == nil {
 		log.Fatalf("Message type %s not found", lookupType)
 	}
 
-	return ProtoFile{msgDesc}
+	return ProtoFile{messageDesc}
 }
 
-// Encode converts JSON string to protobuf binary format
-// Returns as Go string (binary safe) for compatibility with xk6-nats
-func (p *ProtoFile) Encode(jsonString string) string {
-	msg := dynamicpb.NewMessage(p.messageDesc)
-	
-	err := protojson.Unmarshal([]byte(jsonString), msg)
+func (p *ProtoFile) Encode(data string) string {
+	dynamicMessage := dynamicpb.NewMessage(p.messageDesc)
+
+	err := protojson.Unmarshal([]byte(data), dynamicMessage)
+
 	if err != nil {
-		log.Printf("ERROR: protojson.Unmarshal failed: %v", err)
-		panic(err)
+		log.Fatal(err)
 	}
 
-	data, err := proto.Marshal(msg)
+	encodedBytes, err := proto.Marshal(dynamicMessage)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	// Return as string to avoid UTF-8 corruption when passing to xk6-nats
-	return string(data)
+	return string(encodedBytes)
 }
 
-// Decode converts protobuf binary format to JSON string
 func (p *ProtoFile) Decode(decodedBytes []byte) string {
-	msg := dynamicpb.NewMessage(p.messageDesc)
-	
-	err := proto.Unmarshal(decodedBytes, msg)
+
+	decodedMessage := dynamicpb.NewMessage(p.messageDesc)
+
+	err := proto.Unmarshal(decodedBytes, decodedMessage)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	jsonBytes, err := protojson.Marshal(msg)
-	if err != nil {
-		panic(err)
+	marshalOptions := protojson.MarshalOptions{
+		UseProtoNames: true,
 	}
 
-	return string(jsonBytes)
+	jsonString, err := marshalOptions.Marshal(decodedMessage)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return string(jsonString)
 }
