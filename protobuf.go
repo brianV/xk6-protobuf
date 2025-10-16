@@ -33,6 +33,17 @@ func (p *Protobuf) Load(protoFilePath, lookupType string, importPaths ...string)
 			absProtoDir = protoDir
 		}
 		importPaths = []string{absProtoDir}
+	} else {
+		// Convert all provided import paths to absolute paths
+		absImportPaths := make([]string, len(importPaths))
+		for i, path := range importPaths {
+			absPath, err := filepath.Abs(path)
+			if err != nil {
+				absPath = path
+			}
+			absImportPaths[i] = absPath
+		}
+		importPaths = absImportPaths
 	}
 
 	compiler := protocompile.Compiler{
